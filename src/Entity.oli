@@ -1,0 +1,2 @@
+# Clasa de bază pentru toate entitățile din spațiu
+def class Entity { x, y, active, tex, w, h }

@@ -1,0 +1,19 @@
+include "Entity.oli"
+
+def class Enemy extends Entity { move($d, $s, $dt), draw($dt) }
+
+func Enemy::move($d, $s, $dt)
+    $this.x = $this.x + ($d * $s * $dt)
+endfunc
+
+func Enemy::draw($dt)
+    GL_DRAW_SPRITE($this.tex, $this.x, $this.y, $this.w, $this.h, 0)
+endfunc
+
+# Boss-ul moștenește Enemy
+def class Boss extends Enemy { angle, draw($dt) }
+
+func Boss::draw($dt)
+    $this.angle = $this.angle + (180 * $dt)
+    GL_DRAW_SPRITE($this.tex, $this.x, $this.y, $this.w, $this.h, $this.angle)
+endfunc

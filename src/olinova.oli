@@ -1,0 +1,38 @@
+config echo off
+config max_iterations 0
+
+plugin oli_opengl
+plugin oli_keyboard
+plugin oli_math
+plugin oli_time
+plugin oli_miniaudio # 🔥 Plugin pentru sunet
+
+include "src/Scene.oli"
+
+# Inițializare audio nativ
+SND_INIT()
+
+GL_INIT(800, 600, "Oli Invaders - OOP + Audio")
+
+$scene = new("Scene")
+$scene.init()
+
+$lastTime = TIME()
+
+while true do
+    $currentTime = TIME()
+    $dt = $currentTime - $lastTime
+    $lastTime = $currentTime
+
+    $scene.update($dt)
+    $scene.render()
+
+    GL_PRESENT()
+    if KEY_STATE(27) == 1 then break endif
+endwhile
+
+SND_CLOSE()
+KBD_RESTORE()
+GL_CLOSE()
+echo "Joc inchis corect."
+exit()

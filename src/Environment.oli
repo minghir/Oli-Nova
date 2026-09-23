@@ -1,0 +1,65 @@
+def class Environment { stars, planetY, planetSpeed, level, init(), update($dt), render(), setLevel($lvl) }
+
+func Environment::init()
+    # Generare Stele ( Starfield )
+    $tempStars = array(0)
+    for $i = 0 to 40 do
+        $sx = RANDOM(-400, 400)
+        $sy = RANDOM(-300, 300)
+        $sspeed = RANDOM(50, 200)
+        PUSH($tempStars, $sx)
+        PUSH($tempStars, $sy)
+        PUSH($tempStars, $sspeed)
+    endfor
+    $this.stars = $tempStars
+
+    $this.planetY = 500  # Planeta începe de sus, în afara ecranului
+    $this.planetSpeed = 15
+    $this.level = 1
+endfunc
+
+func Environment::setLevel($lvl)
+    $this.level = $lvl
+endfunc
+
+func Environment::update($dt)
+    # 1. Animație Stele
+    $si = 0
+    while $si < 120 do
+        $this.stars[$si + 1] = $this.stars[$si + 1] - ($this.stars[$si + 2] * $dt)
+        if $this.stars[$si + 1] < -300 then
+            $this.stars[$si + 1] = 300
+            $this.stars[$si] = RANDOM(-400, 400)
+        endif
+        $si = $si + 3
+    endwhile
+
+    # 2. Mișcare lentă a planetei din fundal (efect de adâncime / Parallax)
+    $this.planetY = $this.planetY - ($this.planetSpeed * $dt)
+    if $this.planetY < -500 then
+        $this.planetY = 500 # Se resetează după ce a trecut complet
+    endif
+endfunc
+
+func Environment::render()
+    # A. Culoare de Fundal în funcție de Nivel
+    if $this.level == 1 then
+        GL_CLEAR(0x050512) # Spațiu albastru închis
+    else
+        GL_CLEAR(0x120505) # Spațiu roșiatic (nivel mai greu/nebuloasă)
+    endif
+
+    # B. Randare Planetă din Fundal (Cerc mare decorativ)
+    $pScreenX = 200 + (GL_WIDTH() / 2)
+    $pScreenY = (GL_HEIGHT() / 2) - $this.planetY
+    GL_CIRCLE($pScreenX, $pScreenY, 80, 0x333355)
+
+    # C. Randare Stele
+    $si = 0
+    while $si < 120 do
+        $sx = $this.stars[$si] + (GL_WIDTH() / 2)
+        $sy = (GL_HEIGHT() / 2) - $this.stars[$si + 1]
+        GL_POINT($sx, $sy, 2, 0x7777AA)
+        $si = $si + 3
+    endwhile
+endfunc

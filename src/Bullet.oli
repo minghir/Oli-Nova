@@ -1,0 +1,15 @@
+include "src/Entity.oli"
+
+def class Bullet extends Entity { speed, update($dt) }
+
+func Bullet::update($dt)
+    if $this.active == 1 then
+        $this.y = $this.y + ($this.speed * $dt)
+        
+        # Dezactivare dacă iese prin sus (Gloanțe Player)
+        if $this.y > 300 then $this.active = 0 endif
+        
+        # 🔥 FIX: Dezactivare dacă iese prin jos (Gloanțe Inamici)
+        if $this.y < -300 then $this.active = 0 endif
+    endif
+endfunc

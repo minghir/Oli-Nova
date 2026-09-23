@@ -1,0 +1,63 @@
+include "src/Entity.oli"
+
+def class Player extends Entity { speed, angle, canFire, lives, update($dt, $limitX), shoot($bullets, $maxB, $sndLaser), draw() }
+
+func Player::update($dt, $limitX)
+    $targetAngle = 0.0
+
+    if KEY_STATE(37) == 1 then 
+        $this.x = $this.x - ($this.speed * $dt) 
+        $targetAngle = 25.0
+    endif
+    if KEY_STATE(39) == 1 then 
+        $this.x = $this.x + ($this.speed * $dt) 
+        $targetAngle = -25.0
+    endif
+
+    $this.angle = $this.angle + ($targetAngle - $this.angle) * (12.0 * $dt)
+
+    if $this.x < -$limitX then $this.x = -$limitX endif
+    if $this.x > $limitX  then $this.x = $limitX endif
+endfunc
+
+func Player::shoot($bullets, $maxB, $sndLaser)
+    # 1. Verificăm dacă există deja vreun glonț activ în ecran
+    $hasActiveBullet = 0
+    cycle $bullets as $b do
+        if $b != 0 then
+            if $b.active == 1 then
+                $hasActiveBullet = 1
+            endif
+        endif
+    endcycle
+
+    # 2. Permitem tragerea DOAR dacă NU avem niciun glonț pe ecran
+    if KEY_STATE(32) == 1 then
+        if $this.canFire == 1 then
+            if $hasActiveBullet == 0 then
+                cycle $bullets as $b2 do
+                    if $b2 != 0 then
+                        if $b2.active == 0 then
+                            $b2.active = 1
+                            $b2.x = $this.x
+                            $b2.y = $this.y + 30
+                            $this.canFire = 0
+                            
+                            # Redăm sunetul de laser
+                            if $sndLaser != 0 then
+                                SND_PLAY($sndLaser)
+                            endif
+                            break
+                        endif
+                    endif
+                endcycle
+            endif
+        endif
+    else
+        $this.canFire = 1
+    endif
+endfunc
+
+func Player::draw()
+    GL_DRAW_SPRITE($this.tex, $this.x, $this.y, $this.w, $this.h, $this.angle)
+endfunc
