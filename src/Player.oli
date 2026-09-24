@@ -44,7 +44,7 @@ func Player::shoot($bullets, $maxB, $sndLaser)
                             $this.canFire = 0
                             
                             # Redăm sunetul de laser
-                            if $sndLaser != 0 then
+                            if $sndLaser != 0 && @sfxEnabled  == 1 then
                                 SND_PLAY($sndLaser)
                             endif
                             break

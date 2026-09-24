@@ -5,34 +5,166 @@ plugin oli_opengl
 plugin oli_keyboard
 plugin oli_math
 plugin oli_time
-plugin oli_miniaudio # 🔥 Plugin pentru sunet
+plugin oli_miniaudio 
 
 include "src/Scene.oli"
+include "src/Environment.oli"
+include "src/OptionsMenu.oli"
 
-# Inițializare audio nativ
 SND_INIT()
 
-GL_INIT(800, 600, "Oli Invaders - OOP + Audio")
+GL_INIT(800, 600, "Oli-Nova")
+
+@globalMusicId = SND_LOAD("assets/music1.mp3")
+SND_SET_LOOPING(@globalMusicId, 1) # <--- Setăm loop infinit
+SND_PLAY(@globalMusicId)
+
+@sfxEnabled = 1
+
 
 $scene = new("Scene")
 $scene.init()
 
 $lastTime = TIME()
 
+# ==========================================
+# STĂRILE JOCULUI
+# ==========================================
+$STATE_MENU = 0
+$STATE_GAME = 1
+$STATE_OPTIONS = 2
+
+$appState = $STATE_MENU
+$menuIndex = 0    
+$gameStarted = 0      
+
+# --- NOU: Cooldown bazat pe Milisecunde Absolute (TICKS) ---
+$lastKeyPressTime = TICKS()
+$inputDelayMs = 200 # 200 de milisecunde între apăsări (Reglează de aici viteza: mai mare = mai lent)
+
+$midX = GL_WIDTH() / 2 - 50
+$midY = GL_HEIGHT() / 2
+
+$envirom = new("Environment")
+$envirom.init()
+$envirom.setLevel(2)
+
+$options = new("OptionsMenu")
+$options.init()
+
 while true do
     $currentTime = TIME()
     $dt = $currentTime - $lastTime
     $lastTime = $currentTime
+    
+    $currentTicks = TICKS() # Preia timpul absolut în milisecunde
 
-    $scene.update($dt)
-    $scene.render()
+    # ==========================================
+    # STAREA: MENIU PRINCIPAL
+    # ==========================================
+    if $appState == $STATE_MENU then
+        
+        GL_CLEAR(0x050510) 
+		
+        GL_TEXT($midX - 30, $midY - 80, "=== OLI-NOVA ===")
+		
+		$isPaused = 0
+        if $gameStarted == 1 and $scene.state == 1 then
+            $isPaused = 1
+        endif
 
-    GL_PRESENT()
-    if KEY_STATE(27) == 1 then break endif
+		if $isPaused == 1 then $lblStart = "CONTINUE" else $lblStart = "START GAME" endif
+
+        #if $menuIndex == 0 then $txtStart   = "> START GAME <" else $txtStart   = "  START GAME" endif
+		if $menuIndex == 0 then $txtStart   = "> " .. $lblStart .. " <" else $txtStart   = "  " .. $lblStart endif
+        if $menuIndex == 1 then $txtOptions = "> OPTIONS <"    else $txtOptions = "  OPTIONS" endif
+        if $menuIndex == 2 then $txtQuit    = "> QUIT GAME <"  else $txtQuit    = "  QUIT GAME" endif
+
+		$envirom.update($dt)
+		$envirom.render()
+        GL_TEXT($midX, $midY, $txtStart)
+        GL_TEXT($midX, $midY + 40, $txtOptions)
+        GL_TEXT($midX, $midY + 80, $txtQuit)
+
+        # Navigare - Folosim $currentTicks - $lastKeyPressTime > $inputDelayMs
+        if KEY_STATE(38) == 1 then
+            if ($currentTicks - $lastKeyPressTime) > $inputDelayMs then
+                $menuIndex = $menuIndex - 1
+                if $menuIndex < 0 then $menuIndex = 2 endif
+                $lastKeyPressTime = $currentTicks # Resetăm temporizatorul imediat!
+            endif
+        endif
+
+        if KEY_STATE(40) == 1 then
+            if ($currentTicks - $lastKeyPressTime) > $inputDelayMs then
+                $menuIndex = $menuIndex + 1
+                if $menuIndex > 2 then $menuIndex = 0 endif
+                $lastKeyPressTime = $currentTicks
+            endif
+        endif
+
+        # Selectare (Enter = 13)
+        if KEY_STATE(13) == 1 then
+            if ($currentTicks - $lastKeyPressTime) > $inputDelayMs then
+                if $menuIndex == 0 then 
+                    $appState = $STATE_GAME 
+                    if $isPaused == 0 then
+                        $scene.init() 
+                        $gameStarted = 1
+                    endif
+                endif
+                if $menuIndex == 1 then $appState = $STATE_OPTIONS endif
+                if $menuIndex == 2 then break endif 
+                
+                $lastKeyPressTime = $currentTicks
+            endif
+        endif
+    endif
+
+    # ==========================================
+    # STAREA: JOC (Oli-Nova)
+    # ==========================================
+    if $appState == $STATE_GAME then
+        
+        $scene.update($dt)
+        $scene.render()
+
+        # Ieșire înapoi la meniu (Escape = 27)
+        if KEY_STATE(27) == 1 then
+            if ($currentTicks - $lastKeyPressTime) > $inputDelayMs then
+                $appState = $STATE_MENU
+                $lastKeyPressTime = $currentTicks
+            endif
+        endif
+    endif
+
+    # ==========================================
+    # STAREA: OPȚIUNI
+    # ==========================================
+    if $appState == $STATE_OPTIONS then
+        
+        # 1. Update logică (navigare și input)
+        $lastKeyPressTime = $options.update($currentTicks, $lastKeyPressTime, $inputDelayMs)
+        
+        # 2. Randare grafică
+        $options.render($midX, $midY, $envirom, $dt)
+
+        # 3. Verificăm dacă utilizatorul vrea să se întoarcă la meniul principal
+        if $options.isBackRequested == 1 then
+            $appState = $STATE_MENU
+            $options.isBackRequested = 0
+        endif
+
+    endif
+
+    $running = GL_PRESENT()
+    if $running == 0 then break endif
+
 endwhile
 
 SND_CLOSE()
 KBD_RESTORE()
 GL_CLOSE()
-echo "Joc inchis corect."
+
+echo "Oli-Nova închis corect."
 exit()
