@@ -6,35 +6,27 @@ include "src/Environment.oli"
 
 def class Level1 { 
     player, enemies, bullets, enemyBullets, env, sndLaser,
-    eDir, eSpeed, score, wave, state, fps, enemyShootTimer, isComplete, maxWaves
+    eDir, eSpeed, score, wave, state, fps, enemyShootTimer, isComplete, maxWaves,
     init($player), update($dt, $playerRef), render($playerRef), resetWave()
 }
 
 func Level1::init($player)
-	#Repoziționăm nava la startul nivelului (fără să-i resetăm viețile!)
-	$maxWaves = 1
+    $halfH = GL_HEIGHT() / 2.0
+
+    # 1. Poziționare dinamică jucător la marginea de jos
     $player.x = 0
-    $player.y = -240
+    $player.y = -$halfH + 60.0
     $player.canFire = 1
 
-    # Dacă în Nivelul 2 vrei o vizualizare sau un upgrade special:
-    # $player.tex = GL_LOAD_TEXTURE("assets/ship_upgrade.png")
+    # 2. Setare număr maxim de valuri pentru Nivelul 1
+    $this.maxWaves = 1
 
-    # Inițializăm restul elementelor specifice nivelului (inamicii, fundalul etc.)
+    # 3. Mediul de fundal
     $this.env = new("Environment")
     $this.env.init()
     $this.env.setLevel(1)
 
-    $this.sndLaser = SND_LOAD("assets/laser_oli.wav")
-
-
-
-    # Mediul de fundal
-    $this.env = new("Environment")
-    $this.env.init()
-    $this.env.setLevel(1) # Nivelul 1 începe pe fundalul clasic
-
-    # Încărcare sunet laser
+    # 4. Încărcare sunet laser
     $this.sndLaser = SND_LOAD("assets/laser_oli.wav")
 
     # Gloanțe Inamice Pool
@@ -72,8 +64,10 @@ func Level1::init($player)
 endfunc
 
 func Level1::resetWave()
+    $halfH = GL_HEIGHT() / 2.0
     $numE = 6
     $tempEnemies = array(0)
+
     for $i = 0 to $numE - 1 do
         $e = 0
         if $i == 3 then
@@ -89,7 +83,8 @@ func Level1::resetWave()
             $e.h = 45
         endif
         $e.x = ($i * 110) - 270
-        $e.y = 180
+        # Poziționare dinamică în partea de sus a ecranului
+        $e.y = $halfH - 120.0
         $e.active = 1
         PUSH($tempEnemies, $e)
     endfor
@@ -105,13 +100,15 @@ func Level1::update($dt, $player)
     $this.env.update($dt)
 
     if $this.state != 1 then
-        if KEY_STATE(82) == 1 then $this.init() endif
+        if KEY_STATE(82) == 1 then $this.init($player) endif
         return 0
     endif
 
-    $limitX = (GL_WIDTH() / 2) - ($player.w / 2)
+    $halfW = GL_WIDTH() / 2.0
+    $halfH = GL_HEIGHT() / 2.0
+    $limitX = $halfW - ($player.w / 2.0)
 
-    # Player & Gloanțe proprii (folosim referința la player primită de la Scene manager)
+    # Player & Gloanțe proprii
     $player.update($dt, $limitX)
     $player.shoot($this.bullets, 1, $this.sndLaser)
 
@@ -121,13 +118,13 @@ func Level1::update($dt, $player)
         endif
     endcycle
 
-    # Gloanțe inamice
+    # Gloanțe inamice & coliziune cu jucătorul
     cycle $this.enemyBullets as $eb do
         if $eb != 0 then
             if $eb.active == 1 then
                 $eb.update($dt)
-                if ABS($eb.x - $player.x) < ($player.w / 2) then
-                    if ABS($eb.y - $player.y) < ($player.h / 2) then
+                if ABS($eb.x - $player.x) < ($player.w / 2.0) then
+                    if ABS($eb.y - $player.y) < ($player.h / 2.0) then
                         $eb.active = 0
                         $player.lives = $player.lives - 1
                         if $player.lives <= 0 then $this.state = 2 endif
@@ -137,7 +134,7 @@ func Level1::update($dt, $player)
         endif
     endcycle
 
-    # --- LOGICĂ TRAGERE INAMICI ---
+    # LOGICĂ TRAGERE INAMICI
     $this.enemyShootTimer = $this.enemyShootTimer - $dt
 
     $edgeReached = 0
@@ -173,8 +170,8 @@ func Level1::update($dt, $player)
                 cycle $this.bullets as $blt do
                     if $blt != 0 then
                         if $blt.active == 1 then
-                            if ABS($blt.x - $en.x) < ($en.w / 2) then
-                                if ABS($blt.y - $en.y) < ($en.h / 2) then
+                            if ABS($blt.x - $en.x) < ($en.w / 2.0) then
+                                if ABS($blt.y - $en.y) < ($en.h / 2.0) then
                                     $en.active = 0
                                     $blt.active = 0
                                     $this.score = $this.score + (100 * $this.wave)
@@ -184,12 +181,13 @@ func Level1::update($dt, $player)
                     endif
                 endcycle
 
-                if $en.y < -200 then $this.state = 2 endif
+                # 🔥 Game Over dinamic dacă inamicii coboară prea aproape de jucător
+                if $en.y < (-$halfH + 50.0) then $this.state = 2 endif
             endif
         endif
     endcycle
 
-    # Coborâre inamici la perete
+    # Coborâre inamici la atingerea peretelui
     if $edgeReached == 1 then
         $this.eDir = $this.eDir * -1
         cycle $this.enemies as $en2 do 
@@ -201,11 +199,9 @@ func Level1::update($dt, $player)
         endcycle
     endif
 
+    # Verificare curățare val / progres nivel
     if $activeEnemies == 0 then
-        $this.wave = $this.wave + 1
-        $this.eSpeed = $this.eSpeed + 30
         if $this.wave >= $this.maxWaves then 
-            # După 2 wave-uri trecute, semnalăm că nivelul 1 s-a terminat!
             $this.isComplete = 1 
         else 
             $this.wave = $this.wave + 1
@@ -219,28 +215,45 @@ func Level1::render($player)
     $this.env.render()
     $player.draw()
 
+    $halfW = GL_WIDTH() / 2.0
+    $halfH = GL_HEIGHT() / 2.0
+
+    # Factor de scalare dinamic bazat pe rezoluția fizică (raportat la baza 600px)
+    $scale = GL_HEIGHT() / 600.0
+
+    # 1. Randare Gloanțe Player
+    $pSize = 6.0 * $scale       # Dimensiunea capului laser
+    $pLen  = 16.0 * $scale      # Lungimea fasciculului
+
     cycle $this.bullets as $b do
         if $b != 0 then
             if $b.active == 1 then
-                $screenX = $b.x + (GL_WIDTH() / 2)
-                $screenY = (GL_HEIGHT() / 2) - $b.y
-                GL_POINT($screenX, $screenY, 6, 0x00FFFF)
-                GL_LINE($screenX, $screenY, $screenX, $screenY + 12, 0x00FFFF)
+                $screenX = $b.x + $halfW
+                $screenY = $halfH - $b.y
+
+                GL_POINT($screenX, $screenY, $pSize, 0x00FFFF)
+                GL_LINE($screenX, $screenY, $screenX, $screenY + $pLen, 0x00FFFF)
             endif
         endif
     endcycle
+
+    # 2. Randare Gloanțe Inamice
+    $eSize = 7.0 * $scale
+    $eLen  = 14.0 * $scale
 
     cycle $this.enemyBullets as $eb do
         if $eb != 0 then
             if $eb.active == 1 then
-                $screenX = $eb.x + (GL_WIDTH() / 2)
-                $screenY = (GL_HEIGHT() / 2) - $eb.y
-                GL_POINT($screenX, $screenY, 7, 0xFF2222)
-                GL_LINE($screenX, $screenY, $screenX, $screenY - 10, 0xFF5555)
+                $screenX = $eb.x + $halfW
+                $screenY = $halfH - $eb.y
+
+                GL_POINT($screenX, $screenY, $eSize, 0xFF2222)
+                GL_LINE($screenX, $screenY, $screenX, $screenY - $eLen, 0xFF5555)
             endif
         endif
     endcycle
 
+    # Randare inamici
     cycle $this.enemies as $en do
         if $en != 0 then
             if $en.active == 1 then $en.draw(0.016) endif

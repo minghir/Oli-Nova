@@ -10,23 +10,26 @@ func Cutscene::init($sceneType, $player)
     $this.timer = 0.0
     $this.isDone = 0
 
+    $halfH = GL_HEIGHT() / 2.0
+
     if $this.type == 1 then
-        # INTRO: Forțăm nava sus de tot pe ecran (de ex: y = 320) și o setăm să coboare la -240
-        $player.y = 320.0
-        $this.targetY = -240.0
+        # INTRO: Forțăm nava sus de tot în afara ecranului virtual (y = 340) și o coborâm la destinație (-200)
+        $player.x = 0.0
+        $player.y = $halfH + 40.0
+        $this.targetY = -$halfH + 60.0
     else
-        # OUTRO: Pleacă de la poziția curentă de joc și urcă sus de tot
-        $this.targetY = 350.0
+        # OUTRO: Nava pleacă de unde e și urcă sus de tot în afara ecranului
+        $this.targetY = $halfH + 60.0
     endif
 endfunc
 
 func Cutscene::update($dt, $player)
     if $this.isDone == 1 then return 0 endif
 
-    $speed = 250.0
+    $speed = 280.0
 
     if $this.type == 1 then
-        # Animație INTRO: coborâre lină
+        # Animație INTRO: coborâre lină spre poziția de joc
         $player.y = $player.y - ($speed * $dt)
         $player.angle = 0.0
 
@@ -46,9 +49,13 @@ func Cutscene::update($dt, $player)
 endfunc
 
 func Cutscene::render()
+    # Centrare dinamică a textului pe ecranul virtual 800x600
+    $midX = INT(GL_WIDTH() / 2.0)
+    $midY = INT(GL_HEIGHT() / 2.0)
+
     if $this.type == 1 then
-        GL_TEXT(320, 240, "PREPARE FOR BATTLE")
+        GL_TEXT($midX - 90, $midY - 20, "PREPARE FOR BATTLE")
     else
-        GL_TEXT(340, 240, "SECTOR CLEARED")
+        GL_TEXT($midX - 75, $midY - 20, "SECTOR CLEARED")
     endif
 endfunc

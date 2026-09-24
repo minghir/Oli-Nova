@@ -14,14 +14,14 @@ include "src/OptionsMenu.oli"
 
 SND_INIT()
 
-GL_INIT(800, 600, "Oli-Nova")
+# Inițializare fereastră (0 = Windowed 800x600 fix)
+GL_INIT(800, 600, "Oli-Nova", 0)
 
 @globalMusicId = SND_LOAD("assets/music1.mp3")
-SND_SET_LOOPING(@globalMusicId, 1) # <--- Setăm loop infinit
+SND_SET_LOOPING(@globalMusicId, 1) # Loop infinit muzică
 SND_PLAY(@globalMusicId)
 
 @sfxEnabled = 1
-
 
 $scene = new("Scene")
 $scene.init()
@@ -39,12 +39,9 @@ $appState = $STATE_MENU
 $menuIndex = 0    
 $gameStarted = 0      
 
-# --- NOU: Cooldown bazat pe Milisecunde Absolute (TICKS) ---
+# Cooldown bazat pe Milisecunde Absolute (TICKS)
 $lastKeyPressTime = TICKS()
-$inputDelayMs = 200 # 200 de milisecunde între apăsări (Reglează de aici viteza: mai mare = mai lent)
-
-$midX = GL_WIDTH() / 2 - 50
-$midY = GL_HEIGHT() / 2
+$inputDelayMs = 200
 
 $envirom = new("Environment")
 $envirom.init()
@@ -60,21 +57,35 @@ while true do
     
     $currentTicks = TICKS() 
 
-    # 🔥 1. MUTĂ GL_CLEAR AICI! Astfel, cureți buffer-ul video la fiecare cadru și scapi DEFINITIV de clipocit.
+    # Coordonate de centrare calculate dinamic
+    $midX = INT((GL_WIDTH() / 2.0) - 50.0)
+    $midY = INT(GL_HEIGHT() / 2.0)
+
+    # 1. Curățare buffer video o SINGURĂ DATĂ la începutul fiecărui cadru
     GL_CLEAR(0x050510) 
+
+    # Hotkey global Fullscreen (F11 = VK 122)
+    if KEY_STATE(122) == 1 then
+        if ($currentTicks - $lastKeyPressTime) > $inputDelayMs then
+            GL_SWITCH_FULLSCREEN()
+            $lastKeyPressTime = $currentTicks
+        endif
+    endif
 
     # ==========================================
     # STAREA: MENIU PRINCIPAL
     # ==========================================
     if $appState == $STATE_MENU then
         
+        # 🔥 PASUL A: Randăm ÎNTÂI fundalul animat cu stele/planete!
+        $envirom.update($dt)
+        $envirom.render()
+
+        # 🔥 PASUL B: Randăm TOATE textele PESTE fundal!
         GL_TEXT($midX - 30, $midY - 80, "=== OLI-NOVA ===")
         
-        # 🔥 2. LOGICĂ REPARATĂ PENTRU CONTINUE / START GAME
         $isPaused = 0
         if $gameStarted == 1 then
-            # Jocul e "Pauzat" doar dacă suntem în Joc(1), Intro(4) sau Outro(5). 
-            # Dacă suntem la Game Over(2) sau Victorie(3), NU e pauzat, ci e terminat!
             if $scene.state == 1 or $scene.state == 4 or $scene.state == 5 then
                 $isPaused = 1
             endif
@@ -86,19 +97,16 @@ while true do
         if $menuIndex == 1 then $txtOptions = "> OPTIONS <"     else $txtOptions = "  OPTIONS" endif
         if $menuIndex == 2 then $txtQuit    = "> QUIT GAME <"   else $txtQuit    = "  QUIT GAME" endif
 
-        $envirom.update($dt)
-        $envirom.render()
-        
         GL_TEXT($midX, $midY, $txtStart)
         GL_TEXT($midX, $midY + 40, $txtOptions)
         GL_TEXT($midX, $midY + 80, $txtQuit)
 
-        # Navigare - Folosim $currentTicks - $lastKeyPressTime > $inputDelayMs
+        # Navigare Meniu (Sus / Jos)
         if KEY_STATE(38) == 1 then
             if ($currentTicks - $lastKeyPressTime) > $inputDelayMs then
                 $menuIndex = $menuIndex - 1
                 if $menuIndex < 0 then $menuIndex = 2 endif
-                $lastKeyPressTime = $currentTicks # Resetăm temporizatorul imediat!
+                $lastKeyPressTime = $currentTicks
             endif
         endif
 
@@ -150,13 +158,9 @@ while true do
     # ==========================================
     if $appState == $STATE_OPTIONS then
         
-        # 1. Update logică (navigare și input)
         $lastKeyPressTime = $options.update($currentTicks, $lastKeyPressTime, $inputDelayMs)
-        
-        # 2. Randare grafică
         $options.render($midX, $midY, $envirom, $dt)
 
-        # 3. Verificăm dacă utilizatorul vrea să se întoarcă la meniul principal
         if $options.isBackRequested == 1 then
             $appState = $STATE_MENU
             $options.isBackRequested = 0

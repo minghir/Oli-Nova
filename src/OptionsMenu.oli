@@ -1,5 +1,5 @@
 def class OptionsMenu {
-    cfgSound, cfgMusic, cfgVsync, cfgDiff, optIndex,
+    cfgSound, cfgMusic, cfgVsync, cfgFullscreen, cfgDiff, optIndex,
     isBackRequested,
     init(),
     update($currentTicks, $lastKeyPressTime, $inputDelayMs),
@@ -10,6 +10,7 @@ func OptionsMenu::init()
     $this.cfgSound = 1
     $this.cfgMusic = 1
     $this.cfgVsync = 0
+    $this.cfgFullscreen = 0  # 0 = Windowed, 1 = Fullscreen
     $this.cfgDiff = 1
     $this.optIndex = 0
     $this.isBackRequested = 0
@@ -19,11 +20,11 @@ func OptionsMenu::update($currentTicks, $lastKeyPressTime, $inputDelayMs)
     $this.isBackRequested = 0
     $newLastKeyTime = $lastKeyPressTime
 
-    # Navigare Sus/Jos
+    # Navigare Sus/Jos (acum avem 6 opțiuni: de la 0 la 5)
     if KEY_STATE(38) == 1 then
         if ($currentTicks - $newLastKeyTime) > $inputDelayMs then
             $this.optIndex = $this.optIndex - 1
-            if $this.optIndex < 0 then $this.optIndex = 4 endif
+            if $this.optIndex < 0 then $this.optIndex = 5 endif
             $newLastKeyTime = $currentTicks
         endif
     endif
@@ -31,7 +32,7 @@ func OptionsMenu::update($currentTicks, $lastKeyPressTime, $inputDelayMs)
     if KEY_STATE(40) == 1 then
         if ($currentTicks - $newLastKeyTime) > $inputDelayMs then
             $this.optIndex = $this.optIndex + 1
-            if $this.optIndex > 4 then $this.optIndex = 0 endif
+            if $this.optIndex > 5 then $this.optIndex = 0 endif
             $newLastKeyTime = $currentTicks
         endif
     endif
@@ -43,32 +44,39 @@ func OptionsMenu::update($currentTicks, $lastKeyPressTime, $inputDelayMs)
             # 1. SOUND (SFX) ON / OFF
             if $this.optIndex == 0 then 
                 $this.cfgSound = 1 - $this.cfgSound 
-                # Aici poți lăsa un flag global, ex: @sfxEnabled = $this.cfgSound
-				@sfxEnabled = $this.cfgSound
+                @sfxEnabled = $this.cfgSound
             endif
 
-            # 2. MUSIC ON / OFF (Folosind variabila globală direct!)
+            # 2. MUSIC ON / OFF
             if $this.optIndex == 1 then 
                 $this.cfgMusic = 1 - $this.cfgMusic 
                 
                 if $this.cfgMusic == 1 then
-                    SND_SET_VOL(@globalMusicId, 1.0) # Pornește doar muzica
+                    SND_SET_VOL(@globalMusicId, 1.0)
                 else
-                    SND_SET_VOL(@globalMusicId, 0.0) # Oprește doar muzica
+                    SND_SET_VOL(@globalMusicId, 0.0)
                 endif
             endif
             
+            # 3. VSYNC ON / OFF
             if $this.optIndex == 2 then 
                 $this.cfgVsync = 1 - $this.cfgVsync
                 GL_SET_VSYNC($this.cfgVsync)
             endif
-            
+
+            # 4. FULLSCREEN TOGGLE 🔥 (Apelează funcția din plugin)
             if $this.optIndex == 3 then 
+                $this.cfgFullscreen = GL_SWITCH_FULLSCREEN()
+            endif
+            
+            # 5. DIFICULTATE
+            if $this.optIndex == 4 then 
                 $this.cfgDiff = $this.cfgDiff + 1
                 if $this.cfgDiff > 2 then $this.cfgDiff = 0 endif
             endif
 
-            if $this.optIndex == 4 then 
+            # 6. BACK
+            if $this.optIndex == 5 then 
                 $this.isBackRequested = 1
                 $this.optIndex = 0 
             endif
@@ -94,30 +102,21 @@ func OptionsMenu::render($midX, $midY, $menuEnv, $dt)
     $menuEnv.update($dt)
     $menuEnv.render()
 
-    GL_TEXT($midX - 40, $midY - 80, "=== SETARI JOC ===")
+    GL_TEXT($midX - 40, $midY - 90, "=== GAME OPTIONS ===")
 
     # 1. Formatare text Sound ON/OFF
-    if $this.cfgSound == 1 then
-        $strSnd = "ON"
-    else
-        $strSnd = "OFF"
-    endif
+    if $this.cfgSound == 1 then $strSnd = "ON" else $strSnd = "OFF" endif
 
     # 2. Formatare text Music ON/OFF
-    if $this.cfgMusic == 1 then
-        $strMus = "ON"
-    else
-        $strMus = "OFF"
-    endif
+    if $this.cfgMusic == 1 then $strMus = "ON" else $strMus = "OFF" endif
 
     # 3. Formatare text VSync ON/OFF
-    if $this.cfgVsync == 1 then
-        $strVsync = "ON"
-    else
-        $strVsync = "OFF"
-    endif
+    if $this.cfgVsync == 1 then $strVsync = "ON" else $strVsync = "OFF" endif
 
-    # 4. Formatare text Dificultate (EASY / NORMAL / HARD)
+    # 4. Formatare text Fullscreen ON/OFF 🔥
+    if $this.cfgFullscreen == 1 then $strFs = "ON" else $strFs = "OFF" endif
+
+    # 5. Formatare text Dificultate (EASY / NORMAL / HARD)
     if $this.cfgDiff == 0 then
         $strDiff = "EASY"
     else
@@ -128,41 +127,19 @@ func OptionsMenu::render($midX, $midY, $menuEnv, $dt)
         endif
     endif
 
-    # 5. Generare etichete cu cursor pentru opțiunea selectată
-    if $this.optIndex == 0 then
-        $lblOpt1 = "> SOUND: " .. $strSnd .. " <"
-    else
-        $lblOpt1 = "  SOUND: " .. $strSnd
-    endif
+    # 6. Generare etichete cu cursor pentru opțiunea selectată
+    if $this.optIndex == 0 then $lblOpt1 = "> SOUND: " .. $strSnd .. " <" else $lblOpt1 = "  SOUND: " .. $strSnd endif
+    if $this.optIndex == 1 then $lblOpt2 = "> MUSIC: " .. $strMus .. " <" else $lblOpt2 = "  MUSIC: " .. $strMus endif
+    if $this.optIndex == 2 then $lblOpt3 = "> VSYNC: " .. $strVsync .. " <" else $lblOpt3 = "  VSYNC: " .. $strVsync endif
+    if $this.optIndex == 3 then $lblOpt4 = "> FULLSCREEN: " .. $strFs .. " <" else $lblOpt4 = "  FULLSCREEN: " .. $strFs endif
+    if $this.optIndex == 4 then $lblOpt5 = "> DIFF:  " .. $strDiff .. " <" else $lblOpt5 = "  DIFF:  " .. $strDiff endif
+    if $this.optIndex == 5 then $lblOpt6 = "> BACK <" else $lblOpt6 = "  BACK" endif
 
-    if $this.optIndex == 1 then
-        $lblOpt2 = "> MUSIC: " .. $strMus .. " <"
-    else
-        $lblOpt2 = "  MUSIC: " .. $strMus
-    endif
-
-    if $this.optIndex == 2 then
-        $lblOpt3 = "> VSYNC: " .. $strVsync .. " <"
-    else
-        $lblOpt3 = "  VSYNC: " .. $strVsync
-    endif
-
-    if $this.optIndex == 3 then
-        $lblOpt4 = "> DIFF:  " .. $strDiff .. " <"
-    else
-        $lblOpt4 = "  DIFF:  " .. $strDiff
-    endif
-
-    if $this.optIndex == 4 then
-        $lblOpt5 = "> BACK <"
-    else
-        $lblOpt5 = "  BACK"
-    endif
-
-    # Randare texte pe ecran
-    GL_TEXT($midX - 30, $midY - 20, $lblOpt1)
-    GL_TEXT($midX - 30, $midY + 20, $lblOpt2)
-    GL_TEXT($midX - 30, $midY + 60, $lblOpt3)
-    GL_TEXT($midX - 30, $midY + 100, $lblOpt4)
-    GL_TEXT($midX,      $midY + 160, $lblOpt5)
+    # Randare texte pe ecran (distanțate uniform pe axa Y)
+    GL_TEXT($midX - 40, $midY - 40, $lblOpt1)
+    GL_TEXT($midX - 40, $midY - 10, $lblOpt2)
+    GL_TEXT($midX - 40, $midY + 20, $lblOpt3)
+    GL_TEXT($midX - 40, $midY + 50, $lblOpt4)
+    GL_TEXT($midX - 40, $midY + 80, $lblOpt5)
+    GL_TEXT($midX - 10, $midY + 130, $lblOpt6)
 endfunc

@@ -5,9 +5,11 @@ def class Level2 extends Level1 {
 }
 
 func Level2::init($player)
-	$this.maxWaves = 2
+    $halfH = GL_HEIGHT() / 2.0
+
+    $this.maxWaves = 1
     $player.x = 0
-    $player.y = -240
+    $player.y = -$halfH + 60.0
     $player.canFire = 1
 
     # Nivelul 2 folosește mediul roșiatic
@@ -50,24 +52,21 @@ func Level2::init($player)
 endfunc
 
 func Level2::resetWave()
+    $halfH = GL_HEIGHT() / 2.0
     $numE = 6
     $tempEnemies = array(0)
+
+    # 🔥 Pre-încărcăm textura o singură dată în afara buclei
+    $texEnemy2 = GL_LOAD_TEXTURE("assets/small_e2.png")
+
     for $i = 0 to $numE - 1 do
-        $e = 0
-        if $i == 3 then
-            $e = new("Boss")
-            $e.tex = GL_LOAD_TEXTURE("assets/boss.png")
-            $e.w = 80
-            $e.h = 80
-            $e.angle = 0.0
-        else
-            $e = new("Enemy")
-            $e.tex = GL_LOAD_TEXTURE("assets/small_e2.png")
-            $e.w = 45
-            $e.h = 45
-        endif
+        $e = new("Enemy")
+        $e.tex = $texEnemy2
+        $e.w = 45
+        $e.h = 45
+        
         $e.x = ($i * 110) - 270
-        $e.y = 180
+        $e.y = $halfH - 120.0
         $e.active = 1
         PUSH($tempEnemies, $e)
     endfor

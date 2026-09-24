@@ -6,10 +6,11 @@ func Bullet::update($dt)
     if $this.active == 1 then
         $this.y = $this.y + ($this.speed * $dt)
         
-        # Dezactivare dacă iese prin sus (Gloanțe Player)
-        if $this.y > 300 then $this.active = 0 endif
+        # Marjă de siguranță (+30px) pentru ca graficele/liniile glonțului să părăsească complet ecranul
+        $limitY = (GL_HEIGHT() / 2.0) + 30.0
         
-        # 🔥 FIX: Dezactivare dacă iese prin jos (Gloanțe Inamici)
-        if $this.y < -300 then $this.active = 0 endif
+        # Dezactivare dinamică la părăsirea ecranului (sus sau jos)
+        if $this.y > $limitY then $this.active = 0 endif
+        if $this.y < -$limitY then $this.active = 0 endif
     endif
 endfunc
