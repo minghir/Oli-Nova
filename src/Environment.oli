@@ -1,7 +1,9 @@
 def class Environment { 
-    stars, planetX, planetY, planetSpeed, level, texPlanet, planetAngle
+    stars, planetX, planetY, planetSpeed, level, texPlanet, planetAngle, planetR
     init(), update($dt), render(), setLevel($lvl) 
 }
+
+@speedMultiply = 18000
 
 func Environment::init()
     # Generare Stele ( Starfield )
@@ -15,12 +17,19 @@ func Environment::init()
         PUSH($tempStars, $sspeed)
     endfor
     $this.stars = $tempStars
-	$this.planetAngle = 0.0
+    
+    $this.planetAngle = 0.0
     $this.planetY = 600  
     $this.planetX = RANDOM(-200, 200)
-    $this.planetSpeed = 40
+    
+    # Generăm dimensiunea
+    $this.planetR = RANDOM(60, 300)
+    
+    # 🔥 Calculăm viteza în funcție de dimensiune (cu o formulă sigură)
+    # Dacă planetR e mare, viteza va fi mai mare; dacă e mică, viteza va fi mai mică.
+    $this.planetSpeed = @speedMultiply / $this.planetR  # Poți ajusta factorul 0.25 după gust
+    
     $this.level = 1
-	
     
     # Încărcăm o textură inițială (default)
     $this.texPlanet = GL_LOAD_TEXTURE("assets/planet1.png")
@@ -71,6 +80,8 @@ func Environment::update($dt)
         # Când apare o planetă nouă, îi dăm un unghi aleatoriu de start
         $this.planetAngle = RANDOM(0, 360) 
 		$this.texPlanet = GL_LOAD_TEXTURE("assets/planet"..STR(RANDOM(1,4))..".png")
+		$this.planetR = RANDOM(60,300)
+		$this.planetSpeed = @speedMultiply / $this.planetR
     endif
 endfunc
 
@@ -92,8 +103,9 @@ func Environment::render()
 
     # 🔥 Pasăm unghiul calculat către GL_DRAW_SPRITE
     if $this.texPlanet != 0 then
-        GL_DRAW_SPRITE($this.texPlanet, $this.planetX, $this.planetY, 160, 160, $this.planetAngle)
+        GL_DRAW_SPRITE($this.texPlanet, $this.planetX, $this.planetY, $this.planetR, $this.planetR, $this.planetAngle)
     endif
+
 
    
 endfunc

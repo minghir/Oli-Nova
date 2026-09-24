@@ -1,5 +1,6 @@
 config echo off
 config max_iterations 0
+config win_app 1
 
 plugin oli_opengl
 plugin oli_keyboard
