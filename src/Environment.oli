@@ -1,4 +1,7 @@
-def class Environment { stars, planetY, planetSpeed, level, init(), update($dt), render(), setLevel($lvl) }
+def class Environment { 
+    stars, planetX, planetY, planetSpeed, level, texPlanet, planetAngle
+    init(), update($dt), render(), setLevel($lvl) 
+}
 
 func Environment::init()
     # Generare Stele ( Starfield )
@@ -12,14 +15,30 @@ func Environment::init()
         PUSH($tempStars, $sspeed)
     endfor
     $this.stars = $tempStars
-
-    $this.planetY = 500  # Planeta începe de sus, în afara ecranului
-    $this.planetSpeed = 15
+	$this.planetAngle = 0.0
+    $this.planetY = 600  
+    $this.planetX = RANDOM(-200, 200)
+    $this.planetSpeed = 40
     $this.level = 1
+	
+    
+    # Încărcăm o textură inițială (default)
+    $this.texPlanet = GL_LOAD_TEXTURE("assets/planet1.png")
 endfunc
 
 func Environment::setLevel($lvl)
     $this.level = $lvl
+    
+    # Schimbăm textura planetei în funcție de nivel!
+    if $lvl == 1 then
+        $this.texPlanet = GL_LOAD_TEXTURE("assets/planet1.png")
+    endif
+    if $lvl == 2 then
+        $this.texPlanet = GL_LOAD_TEXTURE("assets/planet1.png")
+    endif
+    if $lvl == 3 then
+        $this.texPlanet = GL_LOAD_TEXTURE("assets/planet4.png")
+    endif
 endfunc
 
 func Environment::update($dt)
@@ -34,27 +53,35 @@ func Environment::update($dt)
         $si = $si + 3
     endwhile
 
-    # 2. Mișcare lentă a planetei din fundal (efect de adâncime / Parallax)
+    # 2. Mișcare lentă a planetei
     $this.planetY = $this.planetY - ($this.planetSpeed * $dt)
+    
+    # 🔥 Rotire lentă (ex: 5 grade pe secundă)
+    $this.planetAngle = $this.planetAngle + (3.0 * $dt)
+    
+    # Păstrăm unghiul în limite normale (0-360)
+    if $this.planetAngle >= 360.0 then
+        $this.planetAngle = $this.planetAngle - 360.0
+    endif
+    
     if $this.planetY < -500 then
-        $this.planetY = 500 # Se resetează după ce a trecut complet
+        $this.planetY = 500 
+        $this.planetX = RANDOM(-250, 250)
+        
+        # Când apare o planetă nouă, îi dăm un unghi aleatoriu de start
+        $this.planetAngle = RANDOM(0, 360) 
+		$this.texPlanet = GL_LOAD_TEXTURE("assets/planet"..STR(RANDOM(1,4))..".png")
     endif
 endfunc
 
 func Environment::render()
-    # A. Culoare de Fundal în funcție de Nivel
     if $this.level == 1 then
-        GL_CLEAR(0x050512) # Spațiu albastru închis
+        GL_CLEAR(0x050512)
     else
-        GL_CLEAR(0x120505) # Spațiu roșiatic (nivel mai greu/nebuloasă)
+        GL_CLEAR(0x120505)
     endif
 
-    # B. Randare Planetă din Fundal (Cerc mare decorativ)
-    $pScreenX = 200 + (GL_WIDTH() / 2)
-    $pScreenY = (GL_HEIGHT() / 2) - $this.planetY
-    GL_CIRCLE($pScreenX, $pScreenY, 80, 0x333355)
-
-    # C. Randare Stele
+ # C. Randare Stele
     $si = 0
     while $si < 120 do
         $sx = $this.stars[$si] + (GL_WIDTH() / 2)
@@ -62,4 +89,11 @@ func Environment::render()
         GL_POINT($sx, $sy, 2, 0x7777AA)
         $si = $si + 3
     endwhile
+
+    # 🔥 Pasăm unghiul calculat către GL_DRAW_SPRITE
+    if $this.texPlanet != 0 then
+        GL_DRAW_SPRITE($this.texPlanet, $this.planetX, $this.planetY, 160, 160, $this.planetAngle)
+    endif
+
+   
 endfunc

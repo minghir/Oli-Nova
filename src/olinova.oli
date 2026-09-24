@@ -57,31 +57,37 @@ while true do
     $dt = $currentTime - $lastTime
     $lastTime = $currentTime
     
-    $currentTicks = TICKS() # Preia timpul absolut în milisecunde
+    $currentTicks = TICKS() 
+
+    # 🔥 1. MUTĂ GL_CLEAR AICI! Astfel, cureți buffer-ul video la fiecare cadru și scapi DEFINITIV de clipocit.
+    GL_CLEAR(0x050510) 
 
     # ==========================================
     # STAREA: MENIU PRINCIPAL
     # ==========================================
     if $appState == $STATE_MENU then
         
-        GL_CLEAR(0x050510) 
-		
         GL_TEXT($midX - 30, $midY - 80, "=== OLI-NOVA ===")
-		
-		$isPaused = 0
-        if $gameStarted == 1 and $scene.state == 1 then
-            $isPaused = 1
+        
+        # 🔥 2. LOGICĂ REPARATĂ PENTRU CONTINUE / START GAME
+        $isPaused = 0
+        if $gameStarted == 1 then
+            # Jocul e "Pauzat" doar dacă suntem în Joc(1), Intro(4) sau Outro(5). 
+            # Dacă suntem la Game Over(2) sau Victorie(3), NU e pauzat, ci e terminat!
+            if $scene.state == 1 or $scene.state == 4 or $scene.state == 5 then
+                $isPaused = 1
+            endif
         endif
 
-		if $isPaused == 1 then $lblStart = "CONTINUE" else $lblStart = "START GAME" endif
+        if $isPaused == 1 then $lblStart = "CONTINUE" else $lblStart = "START GAME" endif
 
-        #if $menuIndex == 0 then $txtStart   = "> START GAME <" else $txtStart   = "  START GAME" endif
-		if $menuIndex == 0 then $txtStart   = "> " .. $lblStart .. " <" else $txtStart   = "  " .. $lblStart endif
-        if $menuIndex == 1 then $txtOptions = "> OPTIONS <"    else $txtOptions = "  OPTIONS" endif
-        if $menuIndex == 2 then $txtQuit    = "> QUIT GAME <"  else $txtQuit    = "  QUIT GAME" endif
+        if $menuIndex == 0 then $txtStart   = "> " .. $lblStart .. " <" else $txtStart   = "  " .. $lblStart endif
+        if $menuIndex == 1 then $txtOptions = "> OPTIONS <"     else $txtOptions = "  OPTIONS" endif
+        if $menuIndex == 2 then $txtQuit    = "> QUIT GAME <"   else $txtQuit    = "  QUIT GAME" endif
 
-		$envirom.update($dt)
-		$envirom.render()
+        $envirom.update($dt)
+        $envirom.render()
+        
         GL_TEXT($midX, $midY, $txtStart)
         GL_TEXT($midX, $midY + 40, $txtOptions)
         GL_TEXT($midX, $midY + 80, $txtQuit)

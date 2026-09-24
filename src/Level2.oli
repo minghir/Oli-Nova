@@ -1,0 +1,75 @@
+include "src/Level1.oli"
+
+def class Level2 extends Level1 {
+    init($player), resetWave()
+}
+
+func Level2::init($player)
+	$this.maxWaves = 2
+    $player.x = 0
+    $player.y = -240
+    $player.canFire = 1
+
+    # Nivelul 2 folosește mediul roșiatic
+    $this.env = new("Environment")
+    $this.env.init()
+    $this.env.setLevel(2) 
+
+    $this.sndLaser = SND_LOAD("assets/laser_oli.wav")
+
+    $maxEB = 10
+    $tempEB = array(0)
+    for $i = 0 to $maxEB - 1 do
+        $eb = new("Bullet")
+        $eb.active = 0
+        $eb.speed = -450
+        PUSH($tempEB, $eb)
+    endfor
+    $this.enemyBullets = $tempEB
+
+    $maxB = 1
+    $tempBullets = array(0)
+    for $i = 0 to $maxB - 1 do
+        $b = new("Bullet")
+        $b.active = 0
+        $b.speed = 700
+        PUSH($tempBullets, $b)
+    endfor
+    $this.bullets = $tempBullets
+
+    $this.eDir = 1
+    $this.eSpeed = 160
+    $this.score = 0
+    $this.wave = 1
+    $this.state = 1
+    $this.isComplete = 0
+
+    $this.fps = 60.0
+    $this.enemyShootTimer = 0.8
+    $this.resetWave()
+endfunc
+
+func Level2::resetWave()
+    $numE = 6
+    $tempEnemies = array(0)
+    for $i = 0 to $numE - 1 do
+        $e = 0
+        if $i == 3 then
+            $e = new("Boss")
+            $e.tex = GL_LOAD_TEXTURE("assets/boss.png")
+            $e.w = 80
+            $e.h = 80
+            $e.angle = 0.0
+        else
+            $e = new("Enemy")
+            $e.tex = GL_LOAD_TEXTURE("assets/small_e2.png")
+            $e.w = 45
+            $e.h = 45
+        endif
+        $e.x = ($i * 110) - 270
+        $e.y = 180
+        $e.active = 1
+        PUSH($tempEnemies, $e)
+    endfor
+    $this.enemies = $tempEnemies
+endfunc

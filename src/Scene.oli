@@ -1,27 +1,17 @@
-include "src/Entity.oli"
-include "src/Bullet.oli"
-include "src/Enemy.oli"
 include "src/Player.oli"
-include "src/Environment.oli"
+include "src/Level1.oli"
+include "src/Level2.oli"
+include "src/Level3.oli"
+include "src/Cutscene.oli"
 
-def class Scene { 
-    player, enemies, bullets, enemyBullets, env, sndLaser,
-    eDir, eSpeed, score, wave, state, fps, enemyShootTimer
-    init(), update($dt), render(), resetWave()
+def class Scene {
+    player, currentLevel, levelIndex, state, cutscene, init(), update($dt), render(), startNewLevel($lvlNum)
 }
 
 func Scene::init()
-    # Mediul de fundal
-    $this.env = new("Environment")
-    $this.env.init()
-
-    # Încărcare sunet laser
-    $this.sndLaser = SND_LOAD("assets/laser_oli.wav")
-
-    # Player
     $this.player = new("Player")
     $this.player.x = 0
-    $this.player.y = -240
+    $this.player.y = 0 
     $this.player.w = 50
     $this.player.h = 50
     $this.player.speed = 320
@@ -30,223 +20,128 @@ func Scene::init()
     $this.player.tex = GL_LOAD_TEXTURE("assets/ship.png")
     $this.player.lives = 3
 
-    # Gloanțe Inamice Pool
-    $maxEB = 10
-    $tempEB = array(0)
-    for $i = 0 to $maxEB - 1 do
-        $eb = new("Bullet")
-        $eb.active = 0
-        $eb.speed = -350
-        PUSH($tempEB, $eb)
-    endfor
-    $this.enemyBullets = $tempEB
-
-    # Gloanțe Player Pool (Maxim 1 glonț activ)
-    $maxB = 1
-    $tempBullets = array(0)
-    for $i = 0 to $maxB - 1 do
-        $b = new("Bullet")
-        $b.active = 0
-        $b.speed = 700
-        PUSH($tempBullets, $b)
-    endfor
-    $this.bullets = $tempBullets
-
-    $this.eDir = 1
-    $this.eSpeed = 120
-    $this.score = 0
-    $this.wave = 1
-    $this.state = 1
-
-	$this.fps = 60.0
-	# Timer inițial (asteaptă 1 secundă înainte de primul foc inamic)
-    $this.enemyShootTimer = 1.0
-    $this.resetWave()
+    $this.levelIndex = 1
+    $this.startNewLevel(1)
 endfunc
 
-func Scene::resetWave()
-    $numE = 6
-    $tempEnemies = array(0)
-    for $i = 0 to $numE - 1 do
-        $e = 0
-        if $i == 3 then
-            $e = new("Boss")
-            $e.tex = GL_LOAD_TEXTURE("assets/boss.png")
-            $e.w = 80
-            $e.h = 80
-            $e.angle = 0.0
+func Scene::startNewLevel($lvlNum)
+    if $lvlNum == 1 then
+        $this.currentLevel = new("Level1")
+    else
+        if $lvlNum == 2 then
+            $this.currentLevel = new("Level2")
         else
-            $e = new("Enemy")
-            $e.tex = GL_LOAD_TEXTURE("assets/small_e.png")
-            $e.w = 45
-            $e.h = 45
+            $this.currentLevel = new("Level3")
         endif
-        $e.x = ($i * 110) - 270
-        $e.y = 180
-        $e.active = 1
-        PUSH($tempEnemies, $e)
-    endfor
-    $this.enemies = $tempEnemies
+    endif
+    
+    # 1. Inițializăm nivelul mai întâi (care resetează inamicii și setările)
+    $this.currentLevel.init($this.player)
+
+    # 2. Inițializăm Cutscene-ul INTRO la final, ca să forțeze nava sus de tot!
+    $this.state = 4 
+    $this.cutscene = new("Cutscene")
+    $this.cutscene.init(1, $this.player)
 endfunc
 
 func Scene::update($dt)
-    if $dt > 0 then
-        $instantFps = 1.0 / $dt
-        $this.fps = $this.fps + ($instantFps - $this.fps) * (5.0 * $dt)
-    endif
+    # IZOLAREA STRICTĂ A STĂRILOR (Așa nu se vor mai suprapune niciodată)
+	# IZOLAREA STRICTĂ A STĂRILOR
 
-    $this.env.update($dt)
+    if $this.state == 2 or $this.state == 3 then
+        # 🔥 Chiar dacă jocul s-a terminat, lăsăm stelele din fundal să se miște!
+        $this.currentLevel.env.update($dt) 
 
-    if $this.state != 1 then
-        if KEY_STATE(82) == 1 then $this.init() endif
+        if KEY_STATE(82) == 1 then
+            $this.init() 
+        endif
         return 0
     endif
 
-    $limitX = (GL_WIDTH() / 2) - ($this.player.w / 2)
-
-    # Player & Gloanțe proprii
-    $this.player.update($dt, $limitX)
-    $this.player.shoot($this.bullets, 1, $this.sndLaser)
-
-    cycle $this.bullets as $b do
-        if $b != 0 then
-            if $b.active == 1 then $b.update($dt) endif
+    if $this.state == 2 or $this.state == 3 then
+        # STAREA A: GAME OVER (2) sau VICTORIE (3)
+        if KEY_STATE(82) == 1 then
+            $this.init() 
         endif
-    endcycle
 
-    # Gloanțe inamice
-    cycle $this.enemyBullets as $eb do
-        if $eb != 0 then
-            if $eb.active == 1 then
-                $eb.update($dt)
-                if ABS($eb.x - $this.player.x) < ($this.player.w / 2) then
-                    if ABS($eb.y - $this.player.y) < ($this.player.h / 2) then
-                        $eb.active = 0
-                        $this.player.lives = $this.player.lives - 1
-                        if $this.player.lives <= 0 then $this.state = 2 endif
-                    endif
-                endif
+    else
+        if $this.state == 4 then
+            # STAREA B: INTRO CUTSCENE
+            $this.cutscene.update($dt, $this.player)
+            $this.currentLevel.env.update($dt)
+
+            if $this.cutscene.isDone == 1 then
+                $this.state = 1 # Acțiunea începe!
             endif
-        endif
-    endcycle
 
-    # --- LOGICĂ TRAGERE INAMICI (CU COOLDOWN) ---
-    # Scădem timer-ul de tragere
-    $this.enemyShootTimer = $this.enemyShootTimer - $dt
+        else
+            if $this.state == 5 then
+                # STAREA C: OUTRO CUTSCENE
+                $this.cutscene.update($dt, $this.player)
+                $this.currentLevel.env.update($dt)
 
-    $edgeReached = 0
-    $activeEnemies = 0
+                if $this.cutscene.isDone == 1 then
+                    $this.levelIndex = $this.levelIndex + 1
 
-    cycle $this.enemies as $en do
-        if $en != 0 then
-            if $en.active == 1 then
-                $activeEnemies = $activeEnemies + 1
-                $en.move($this.eDir, $this.eSpeed, $dt)
-
-                if ABS($en.x) > $limitX then $edgeReached = 1 endif
-
-                # Când timer-ul a expirat, încercăm să tragem cu inamicul curent
-                if $this.enemyShootTimer <= 0 then
-                    # 30% șansă ca inamicul curent să fie cel ales să tragă
-                    if RANDOM(0, 10) < 3 then
-                        cycle $this.enemyBullets as $eb2 do
-                            if $eb2.active == 0 then
-                                $eb2.active = 1
-                                $eb2.x = $en.x
-                                $eb2.y = $en.y - 20
-                                
-                                # 🔥 PAUZĂ GARANTATĂ între focuri:
-                                # Între 0.6s și 1.4s (devine mai rapid pe măsură ce wave-ul e mai mare)
-                                $delay = 1.4 - ($this.wave * 0.1)
-                                if $delay < 0.5 then $delay = 0.5 endif
-                                
-                                # Adăugăm și o mică variație aleatorie
-                                $this.enemyShootTimer = $delay + (RANDOM(0, 40) / 100.0)
-                                break
-                            endif
-                        endcycle
+                    if $this.levelIndex <= 3 then
+                        $this.startNewLevel($this.levelIndex)
+                    else
+                        $this.state = 3 # VICTORIE
                     endif
                 endif
 
-                # Coliziune glonț jucător -> inamic
-                cycle $this.bullets as $blt do
-                    if $blt != 0 then
-                        if $blt.active == 1 then
-                            if ABS($blt.x - $en.x) < ($en.w / 2) then
-                                if ABS($blt.y - $en.y) < ($en.h / 2) then
-                                    $en.active = 0
-                                    $blt.active = 0
-                                    $this.score = $this.score + (100 * $this.wave)
-                                endif
-                            endif
-                        endif
-                    endif
-                endcycle
+            else
+                # STAREA D: JOC NORMAL ($this.state == 1)
+                
+                # Verificăm dacă jucătorul a murit
+                if $this.currentLevel.state == 2 then
+                    $this.state = 2
+                else
+                    # Dacă e viu, rulăm jocul
+                    $this.currentLevel.update($dt, $this.player)
 
-                if $en.y < -200 then $this.state = 2 endif
+                    # Verificăm dacă a omorât toți inamicii din ultimul val
+                    if $this.currentLevel.isComplete == 1 then
+                        $this.currentLevel.isComplete = 0 
+                        
+                        $this.state = 5 # Pornim Outro
+                        $this.cutscene = new("Cutscene")
+                        $this.cutscene.init(2, $this.player)
+                    endif
+                endif
+
             endif
         endif
-    endcycle
-
-    # Coborâre inamici la perete + repoziționare sigură (Fix teleportare)
-    if $edgeReached == 1 then
-        $this.eDir = $this.eDir * -1
-        cycle $this.enemies as $en2 do 
-            if $en2 != 0 then 
-                # 1. Coboară o singură dată
-                $en2.y = $en2.y - 20 
-
-                # 2. Îi împingem ușor înapoi pe ecran ca să nu re-atingă peretele în cadrul următor
-                if $en2.x > $limitX then $en2.x = $limitX endif
-                if $en2.x < -$limitX then $en2.x = -$limitX endif
-            endif
-        endcycle
-    endif
-
-    if $activeEnemies == 0 then
-        $this.wave = $this.wave + 1
-        $this.eSpeed = $this.eSpeed + 30
-        if $this.wave >= 3 then $this.env.setLevel(2) endif
-        $this.resetWave()
     endif
 endfunc
 
 func Scene::render()
-    $this.env.render()
-    $this.player.draw()
+    if $this.state == 4 or $this.state == 5 then
+        $this.currentLevel.env.render()
+        $this.player.draw()
+        $this.cutscene.render()
+    else
+        $this.currentLevel.render($this.player)
+    endif
 
-    cycle $this.bullets as $b do
-        if $b != 0 then
-            if $b.active == 1 then
-                $screenX = $b.x + (GL_WIDTH() / 2)
-                $screenY = (GL_HEIGHT() / 2) - $b.y
-                GL_POINT($screenX, $screenY, 6, 0x00FFFF)
-                GL_LINE($screenX, $screenY, $screenX, $screenY + 12, 0x00FFFF)
-            endif
-        endif
-    endcycle
+    # HUD Global (Evităm să desenăm HUD-ul în Intro pentru un efect cinematic mai curat)
+    if $this.state == 1 or $this.state == 2 or $this.state == 3 then
+        $scoreVal = $this.currentLevel.score
+        $waveVal  = $this.currentLevel.wave
+        $livesVal = $this.player.lives
+        $fpsVal   = INT($this.currentLevel.fps)
 
-    cycle $this.enemyBullets as $eb do
-        if $eb != 0 then
-            if $eb.active == 1 then
-                $screenX = $eb.x + (GL_WIDTH() / 2)
-                $screenY = (GL_HEIGHT() / 2) - $eb.y
-                GL_POINT($screenX, $screenY, 7, 0xFF2222)
-                GL_LINE($screenX, $screenY, $screenX, $screenY - 10, 0xFF5555)
-            endif
-        endif
-    endcycle
-
-    cycle $this.enemies as $en do
-        if $en != 0 then
-            if $en.active == 1 then $en.draw(0.016) endif
-        endif
-    endcycle
-
-    GL_TEXT(20, 20, "SCORE: " .. STR($this.score) .. "  |  WAVE: " .. STR($this.wave) .. "  |  LIVES: " .. STR($this.player.lives) .. "  |  FPS: " .. STR(INT($this.fps)))
+        GL_TEXT(20, 20, "SCORE: " .. STR($scoreVal) .. "  |  LEVEL: " .. STR($this.levelIndex) .. " | WAVE: " .. STR($waveVal) .. "  |  LIVES: " .. STR($livesVal) .. "  |  FPS: " .. STR($fpsVal))
+    endif
 
     if $this.state == 2 then
         GL_TEXT(330, 280, "GAME OVER")
-        GL_TEXT(280, 320, "Apasa tasta 'R' pentru Restart")
+        GL_TEXT(250, 320, "Apasa tasta 'R' pentru a relua jocul")
+    endif
+
+    if $this.state == 3 then
+        GL_TEXT(320, 260, "VICTORIE!")
+        GL_TEXT(260, 300, "Felicitari! Ai salvat galaxia!")
+        GL_TEXT(250, 340, "Apasa tasta 'R' pentru Restart")
     endif
 endfunc

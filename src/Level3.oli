@@ -1,0 +1,50 @@
+include "src/Level1.oli"
+
+def class Level3 extends Level1 {
+    init($player)
+}
+
+func Level3::init($player)
+	$this.maxWaves = 3
+    $player.x = 0
+    $player.y = -240
+    $player.canFire = 1
+
+    # Nivelul 3 - Ultimatul
+    $this.env = new("Environment")
+    $this.env.init()
+    $this.env.setLevel(2) # Poți extinde Environment cu nivelul 3 dacă dorești
+
+    $this.sndLaser = SND_LOAD("assets/laser_oli.wav")
+
+    $maxEB = 12
+    $tempEB = array(0)
+    for $i = 0 to $maxEB - 1 do
+        $eb = new("Bullet")
+        $eb.active = 0
+        $eb.speed = -550 # Gloanțe foarte rapide!
+        PUSH($tempEB, $eb)
+    endfor
+    $this.enemyBullets = $tempEB
+
+    $maxB = 1
+    $tempBullets = array(0)
+    for $i = 0 to $maxB - 1 do
+        $b = new("Bullet")
+        $b.active = 0
+        $b.speed = 700
+        PUSH($tempBullets, $b)
+    endfor
+    $this.bullets = $tempBullets
+
+    $this.eDir = 1
+    $this.eSpeed = 210 # Inamici extrem de iuți
+    $this.score = 0
+    $this.wave = 1
+    $this.state = 1
+    $this.isComplete = 0
+
+    $this.fps = 60.0
+    $this.enemyShootTimer = 0.5
+    $this.resetWave()
+endfunc

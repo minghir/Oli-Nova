@@ -1,0 +1,54 @@
+def class Cutscene {
+    type, duration, timer, startY, targetY, isDone,
+    init($sceneType, $player),
+    update($dt, $player),
+    render()
+}
+
+func Cutscene::init($sceneType, $player)
+    $this.type = $sceneType # 1 = Intro, 2 = Outro
+    $this.timer = 0.0
+    $this.isDone = 0
+
+    if $this.type == 1 then
+        # INTRO: Forțăm nava sus de tot pe ecran (de ex: y = 320) și o setăm să coboare la -240
+        $player.y = 320.0
+        $this.targetY = -240.0
+    else
+        # OUTRO: Pleacă de la poziția curentă de joc și urcă sus de tot
+        $this.targetY = 350.0
+    endif
+endfunc
+
+func Cutscene::update($dt, $player)
+    if $this.isDone == 1 then return 0 endif
+
+    $speed = 250.0
+
+    if $this.type == 1 then
+        # Animație INTRO: coborâre lină
+        $player.y = $player.y - ($speed * $dt)
+        $player.angle = 0.0
+
+        if $player.y <= $this.targetY then
+            $player.y = $this.targetY
+            $this.isDone = 1
+        endif
+    else
+        # Animație OUTRO: plecare în viteză spre sus
+        $player.y = $player.y + ($speed * 1.8 * $dt)
+        $player.angle = 0.0
+
+        if $player.y >= $this.targetY then
+            $this.isDone = 1
+        endif
+    endif
+endfunc
+
+func Cutscene::render()
+    if $this.type == 1 then
+        GL_TEXT(320, 240, "PREPARE FOR BATTLE")
+    else
+        GL_TEXT(340, 240, "SECTOR CLEARED")
+    endif
+endfunc
