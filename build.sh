@@ -1,1 +1,1 @@
-../oli/oli.exe -b ./src/olinova.oli
+../oli/oli -b ./src/olinova.oli
